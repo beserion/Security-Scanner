@@ -1,0 +1,19 @@
+
+#!/usr/bin/env bash
+STAGED=$(git diff --cached --name-only --diff-filter=ACM)
+[ -z "$STAGED" ] && exit 0
+
+TMP=$(mktemp -d)
+trap "rm -rf $TMP" EXIT
+
+FILES=""
+while read -r f; do
+    mkdir -p "$TMP/$(dirname "$f")"
+    git show :$f > "$TMP/$f" 2>/dev/null || continue
+    FILES="$FILES $TMP/$f"
+done <<< "$STAGED"
+
+python3 scanner.py $FILES
+[ $? -ne 0 ] && { echo "Detected secret — commit blocked."; exit 1; }
+
+exit 0
